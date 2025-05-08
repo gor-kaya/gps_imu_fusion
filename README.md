@@ -1,9 +1,9 @@
 # gps_imu_fusion
-This is a repo for data fusion with GPS and IMU. The code is a modified version of the "kalman_filter_with_kitti" implementation by Kimura [1]
+This is a repository for data fusion with GPS and IMU. The code is a modified version of the "kalman_filter_with_kitti" implementation by Kimura [1]
 
-src/results_a_plotting.py is for filtering and plotting data from the KITTI Benchmark Suite [2]
+"src/results_a_plotting.py" is for filtering and plotting data from the KITTI Benchmark Suite [2]
 
-src/results_b_plotting.py is for filtering and plotting data obtained experimentally using an Arduino-based platform and StrathVoyager ASV.
+"src/results_b_plotting.py" is for filtering and plotting data obtained experimentally using an Arduino-based platform and StrathVoyager ASV. This project uses the GNSS sensor PA1616D and the IMU BNO055. Data capturing file for Arduino is: "arduino_gps_imu_sd.ino".
 
 
 [1] M. Kimura, motokimura/kalman_filter_with_kitti. GitHub. [Online]. Available: https://github.com/motokimura/kalman_filter_with_kitti. [Accessed: Mar. 28, 2025].

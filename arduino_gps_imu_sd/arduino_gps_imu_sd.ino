@@ -97,7 +97,6 @@ void loop()
 
     imuFile = SD.open("gps_data.txt", FILE_WRITE);
     if (imuFile) {
-      imuFile.println("IMU IS ON BICZES");
       
       imu::Vector<3> euler = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
       imu::Vector<3> gyro = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);

@@ -86,3 +86,38 @@ def rmse(a: np.ndarray, b: np.ndarray) -> float:
     if len(a) == 0:
         return 0.0
     return np.sqrt(np.mean((a - b) ** 2))
+
+
+def pct_diff_series(baseline: np.ndarray, new: np.ndarray) -> np.ndarray:
+    """
+    Compute relative change (%) at each element:
+        (new - baseline) / baseline * 100
+
+    Args:
+        baseline: Baseline array (e.g., variances from baseline tuning)
+        new: Array from new tuning (same shape as baseline)
+
+    Returns:
+        NumPy array of relative changes in percent, same shape as inputs.
+    """
+    if baseline.shape != new.shape:
+        raise ValueError(f"Shapes must match: {baseline.shape} vs {new.shape}")
+
+    baseline = baseline.astype(float)
+    new = new.astype(float)
+
+    out = np.empty_like(baseline, dtype=float)
+    mask = baseline != 0.0
+
+    # Where baseline is nonzero, compute standard relative change
+    out[mask] = 100.0 * (new[mask] - baseline[mask]) / baseline[mask]
+
+    # Where baseline is zero:
+    # - if new is also zero, define change as 0%
+    # - otherwise, mark as inf to indicate undefined/infinite relative change
+    zero_mask = ~mask
+    both_zero = zero_mask & (new == 0.0)
+    out[both_zero] = 0.0
+    out[zero_mask & ~both_zero] = float("inf")
+
+    return out

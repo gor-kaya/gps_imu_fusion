@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from kalman_filters import ExtendedKalmanFilter as EKF
-from utils import lla_to_enu, normalize_angles, ddmm_to_dec, get_sec, data_unpacking, rmse, pct_diff_series
+from utils import lla_to_enu, normalize_angles, ddmm_to_dec, get_sec, data_unpacking, rmsd, pct_diff_series
 from utils.plots import plot_trajectory, plot_variances_xy, plot_variances_theta, plot_residuals
 
 
@@ -49,6 +49,14 @@ PARAM_BOUNDARIES = {
     'initial_yaw_std': (0.63, 1.5 * np.pi, BASE_TUNING.initial_yaw_std),
     'forward_velocity_noise_std': (0.08, 0.6, BASE_TUNING.forward_velocity_noise_std),
     'yaw_rate_noise_std': (0.04, 0.3, BASE_TUNING.yaw_rate_noise_std),
+}
+
+# Mapping of parameter names to their LaTeX notation for plotting
+PARAM_LATEX_NAMES = {
+    'xy_obs_noise_std': r'$\sigma_{x_0^1}^{2}=\sigma_{x_0^2}^{2}$',
+    'initial_yaw_std': r'$\sigma_{x_0^3}^{2}$',
+    'forward_velocity_noise_std': r'$\sigma_{u_0^1}^{2}$',
+    'yaw_rate_noise_std': r'$\sigma_{u_0^2}^{2}$',
 }
 
 def filtering(raw_data, tuning_params=None, seed: int | None = None):
@@ -259,8 +267,8 @@ def run_sensitivity_analysis(pond_data_files: list[Path], seed: int | None = Non
                     baseline_var = getattr(baseline_result, var_type)
                     perturbed_var = getattr(perturbed_result, var_type)
                     
-                    # Calculate RMSE
-                    rmse_val = rmse(baseline_var, perturbed_var)
+                    # Calculate RMSD
+                    rmsd_val = rmsd(baseline_var, perturbed_var)
                     
                     # Calculate percentage differences
                     pct_diffs = pct_diff_series(baseline_var, perturbed_var)
@@ -275,7 +283,7 @@ def run_sensitivity_analysis(pond_data_files: list[Path], seed: int | None = Non
                         max_pct = 0.0
                         min_pct = 0.0
                     
-                    row[f'RMSE_var_{var_name}'] = rmse_val
+                    row[f'RMSD_var_{var_name}'] = rmsd_val
                     row[f'Max%_var_{var_name}'] = max_pct
                     row[f'Min%_var_{var_name}'] = min_pct
                 
@@ -284,9 +292,9 @@ def run_sensitivity_analysis(pond_data_files: list[Path], seed: int | None = Non
         # Write results to CSV file
         csv_filename = f"sensitivity_analysis_{scenario_name}.csv"
         fieldnames = ['Parameter', 'Boundary', 
-                      'RMSE_var_x', 'Max%_var_x', 'Min%_var_x',
-                      'RMSE_var_y', 'Max%_var_y', 'Min%_var_y',
-                      'RMSE_var_theta', 'Max%_var_theta', 'Min%_var_theta']
+                      'RMSD_var_x', 'Max%_var_x', 'Min%_var_x',
+                      'RMSD_var_y', 'Max%_var_y', 'Min%_var_y',
+                      'RMSD_var_theta', 'Max%_var_theta', 'Min%_var_theta']
         
         with open(csv_filename, 'w', newline='') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -298,14 +306,14 @@ def run_sensitivity_analysis(pond_data_files: list[Path], seed: int | None = Non
         # Print table to console
         print(f"\n{scenario_name} Sensitivity Analysis Results:")
         print("-" * 150)
-        print(f"{'Parameter':<30} {'Boundary':<10} {'RMSE_x':<12} {'Max%_x':<12} {'Min%_x':<12} "
-              f"{'RMSE_y':<12} {'Max%_y':<12} {'Min%_y':<12} {'RMSE_th':<12} {'Max%_th':<12} {'Min%_th':<12}")
+        print(f"{'Parameter':<30} {'Boundary':<10} {'RMSD_x':<12} {'Max%_x':<12} {'Min%_x':<12} "
+              f"{'RMSD_y':<12} {'Max%_y':<12} {'Min%_y':<12} {'RMSD_th':<12} {'Max%_th':<12} {'Min%_th':<12}")
         print("-" * 150)
         for row in rows:
             print(f"{row['Parameter']:<30} {row['Boundary']:<10} "
-                  f"{row['RMSE_var_x']:<12.4f} {row['Max%_var_x']:<12.2f} {row['Min%_var_x']:<12.2f} "
-                  f"{row['RMSE_var_y']:<12.4f} {row['Max%_var_y']:<12.2f} {row['Min%_var_y']:<12.2f} "
-                  f"{row['RMSE_var_theta']:<12.4f} {row['Max%_var_theta']:<12.2f} {row['Min%_var_theta']:<12.2f}")
+                  f"{row['RMSD_var_x']:<12.4f} {row['Max%_var_x']:<12.2f} {row['Min%_var_x']:<12.2f} "
+                  f"{row['RMSD_var_y']:<12.4f} {row['Max%_var_y']:<12.2f} {row['Min%_var_y']:<12.2f} "
+                  f"{row['RMSD_var_theta']:<12.4f} {row['Max%_var_theta']:<12.2f} {row['Min%_var_theta']:<12.2f}")
 
 
 def create_tornado_graphs(scenarios: list[str] = None):
@@ -314,7 +322,7 @@ def create_tornado_graphs(scenarios: list[str] = None):
     
     Generates one figure per scenario with a 3x3 grid showing all metrics and variance types.
     Each row represents a variance type (var_x, var_y, var_theta).
-    Each column represents a metric (RMSE, Max%, Min%).
+    Each column represents a metric (RMSD, Max%, Min%).
     
     Args:
         scenarios: List of scenario names (e.g., ['Scenario_B1', 'Scenario_B2', 'Scenario_B3'])
@@ -325,7 +333,7 @@ def create_tornado_graphs(scenarios: list[str] = None):
     
     # Metrics to create tornado graphs for
     metrics = {
-        'RMSE': ('RMSE_{var_type}', 'RMSE'),
+        'RMSD': ('RMSD_{var_type}', 'RMSD'),
         'Max% dif': ('Max%_{var_type}', 'Max % dif'),
         'Min% dif': ('Min%_{var_type}', 'Min % dif'),
     }
@@ -340,7 +348,7 @@ def create_tornado_graphs(scenarios: list[str] = None):
         
         # Create one large figure with 3x3 grid (rows=variance types, columns=metrics)
         fig, axes = plt.subplots(3, 3, figsize=(20, 14))
-        fig.suptitle(f'{scenario_name} - Sensitivity Analysis Tornado Charts', fontsize=18, fontweight='bold')
+        fig.suptitle(f'{scenario_name} - Sensitivity Analysis', fontsize=18)
         
         # Iterate through metrics (columns) and variance types (rows)
         for col_idx, (metric_name, (col_pattern, metric_label)) in enumerate(metrics.items()):
@@ -365,8 +373,8 @@ def create_tornado_graphs(scenarios: list[str] = None):
                     lower_impacts.append(lower_value)
                     upper_impacts.append(upper_value)
                     
-                    # Use short parameter names for labels
-                    param_short = param_name.replace('_', '\n')
+                    # Use LaTeX parameter names for labels
+                    param_short = PARAM_LATEX_NAMES[param_name]
                     parameters.append(param_short)
                 
                 # Calculate impact ranges (upper impact - lower impact)
@@ -381,42 +389,37 @@ def create_tornado_graphs(scenarios: list[str] = None):
                 # Create tornado plot
                 y_pos = np.arange(len(sorted_parameters))
                 
-                # For tornado chart: left bars are negative, right bars are positive
+                # Plot bars for lower and upper bounds (all positive values)
                 left_values = np.array(sorted_lower)
                 right_values = np.array(sorted_upper)
                 
-                # Plot left side (lower bounds) - negative direction (red)
-                ax.barh(y_pos, -left_values, color='#e74c3c', alpha=0.75, height=0.7, label='Lower Bound' if col_idx == 0 and row_idx == 0 else '')
+                # Create offset positions for side-by-side bars
+                bar_height = 0.35
+                offset = bar_height / 2
                 
-                # Plot right side (upper bounds) - positive direction (green)
-                ax.barh(y_pos, right_values, color='#2ecc71', alpha=0.75, height=0.7, label='Upper Bound' if col_idx == 0 and row_idx == 0 else '')
+                # Plot lower bounds (red)
+                ax.barh(y_pos - offset, left_values, bar_height, color='#e74c3c', alpha=0.75, label='Lower Bound' if col_idx == 0 and row_idx == 0 else '')
+                
+                # Plot upper bounds (green)
+                ax.barh(y_pos + offset, right_values, bar_height, color='#2ecc71', alpha=0.75, label='Upper Bound' if col_idx == 0 and row_idx == 0 else '')
                 
                 # Customize plot
                 ax.set_yticks(y_pos)
-                ax.set_yticklabels(sorted_parameters, fontsize=9)
+                ax.set_yticklabels(sorted_parameters, fontsize=11)
                 
-                # Set xlabel with units for RMSE based on variance type
-                if metric_name == 'RMSE':
+                # Set xlabel with units for RMSD based on variance type and metric
+                if metric_name == 'RMSD':
                     if var_type == 'var_theta':
-                        xlabel = 'RMSE [rad]'
+                        xlabel = f'RMSD [$rad^2$] of {var_type}'
                     else:  # var_x or var_y
-                        xlabel = 'RMSE [m]'
+                        xlabel = f'RMSD [$m^2$] of {var_type}'
                 else:
-                    xlabel = metric_label
+                    xlabel = f'{metric_label} of {var_type}'
                 
-                ax.set_xlabel(xlabel, fontsize=10, fontweight='bold')
-                
-                # Set title only for first row (metrics) and last column label for variance type
-                if row_idx == 0:
-                    ax.set_title(metric_name, fontsize=11, fontweight='bold', pad=8)
+                ax.set_xlabel(xlabel, fontsize=10)
                 
                 ax.axvline(0, color='black', linestyle='-', linewidth=0.8)
                 ax.grid(axis='x', alpha=0.3, linewidth=0.5)
-                
-                # Add row labels on the left
-                if col_idx == 0:
-                    ax.text(-0.13, 0.5, f'{var_type}', transform=ax.transAxes,
-                           fontsize=11, fontweight='bold', va='center', ha='right', rotation=90)
         
         # Add shared legend for all subplots
         handles = [plt.Rectangle((0, 0), 1, 1, fc='#e74c3c', alpha=0.75),

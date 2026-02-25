@@ -70,16 +70,16 @@ def data_unpacking(pond_data_dir):
     unpacked_data = (observed_trajectory_lla, observed_yaws, observed_yaw_rates, observed_forward_velocities, timestamps)
     return unpacked_data
 
-def rmse(a: np.ndarray, b: np.ndarray) -> float:
+def rmsd(a: np.ndarray, b: np.ndarray) -> float:
     """
-    Calculate Root Mean Square Error between two arrays.
+    Calculate Root Mean Square Deviation between two arrays.
     
     Args:
         a: First array (baseline variances)
         b: Second array (perturbed variances)
     
     Returns:
-        RMSE value
+        RMSD value
     """
     if len(a) != len(b):
         raise ValueError(f"Arrays must have the same length: {len(a)} vs {len(b)}")
